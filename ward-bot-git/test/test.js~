@@ -1,0 +1,191 @@
+const Ward = require("../main.js");
+const Should = require("should");
+const R = require("ramda");
+
+/*
+
+Input -> Computation -> Output w/State
+
+테스트할 것
+
+
+
+*/
+
+function create_fake_message(message, channel, author, url) {
+    return {"content": message,
+            "channel": {"id": channel},
+            "author": {"id": author},
+            "url": url}
+}
+
+describe("Constructor test", function () {
+    describe("Create Locinfo", function () {
+        it("Locinfo should consist of channel and user", function () {
+            const linfo = Ward.create_locinfo("123", "456");
+            linfo.should.have.properties(["channel", "user"]);
+        });
+        it("Channel and user id must consist of numbers", function () {
+            (()=> Ward.create_locinfo("a1234", "123")).should.throw();
+            (()=> Ward.create_locinfo("", "123")).should.throw();
+            (()=> Ward.create_locinfo("1  2", "123")).should.throw();
+            (()=> Ward.create_locinfo("123", "a1234")).should.throw();
+            (()=> Ward.create_locinfo("3441", "")).should.throw();
+            (()=> Ward.create_locinfo("", "1   2")).should.throw();
+        });
+    });
+    describe("Create Ward", function () {
+        it("Ward should consist of Desc, Url and Locinfo", function () {
+            const ward = Ward.create_ward("test", "http://discord.com/msg/123",
+                                           Ward.create_locinfo("1234", "5678"));
+            ward.should.have.properties(["desc", "url", "locinfo"]);
+        });
+    });
+    describe("Create Query", function () {
+        it("Query should consist of State, Page, Choices and Query Action", function () {
+            const asking_query = Ward.create_asking_query(1, []);
+            const canceled_query = Ward.create_canceled_query();
+            asking_query.should.have.properties(["state", "page", "choices", "query_action"]);
+            canceled_query.should.have.properties(["state", "page", "choices", "query_action"]);
+        });
+    });
+    // Create (Search / Add / Print / Delete) action
+});
+
+describe("Tests from found bugs", function () {
+    it("apply_query shouldn't override 'wards' property", function () {
+        const memory = { "wards": {"1": {"2": "wwwww" }}};
+        const query = Ward.create_asking_query(1, [], "SEARCH");
+        Ward.apply_query(query, "2", memory).should.deepEqual(
+            { "wards": {"1": {"2": "wwwww" }}, "queries": {"2": query}}
+        )
+    });
+});
+
+/*
+describe("Command parsing test", function () {
+    describe("", function () {
+    });
+});
+
+describe("Transition Function Test", function () {
+    describe("Set command", function () {});
+});
+
+describe("Ward Set State Transition Test", function () {
+    describe("Add ward", function () {
+        it("", function () {
+        });
+    });
+}); */ // 이것들은 터지면 짜는 걸로... 
+
+describe("Behaviour Test", function () {
+    describe("Suite 1 (consecutive)", function () {
+        let sample_memory = {};
+        let logs = [];
+        const set_memory = memory => sample_memory = memory;
+        const get_memory = () => sample_memory;
+        const reply = text => logs.push(text);
+
+        it("If received a message which is not command, should ignore", function () {
+            const message = create_fake_message(
+                "!wad asdf",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/677095212425805824"
+            );
+            Ward.handle_message_(message, get_memory, set_memory, reply);
+            logs.should.deepEqual([]);
+            sample_memory.should.deepEqual({});
+        });
+
+        it("Invalid command should do nothing", function () {
+            const message1 = create_fake_message(
+                "!ward asdf",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/677095212425805824"
+            );
+            const message2 = create_fake_message(
+                "!ward set",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/677095212425805824"
+            );
+            Ward.handle_message_(message1, get_memory, set_memory, reply);
+            Ward.handle_message_(message2, get_memory, set_memory, reply);
+            sample_memory.should.deepEqual({});
+        });
+
+        it("'!ward set test' should update the memory", function () {
+            const message = create_fake_message(
+                "!ward set test",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/677095212425805824"
+            );
+
+            Ward.handle_message_(message, get_memory, set_memory, reply);
+
+            const locinfo = Ward.create_locinfo("661500095400902687","351172817519116301");
+            const ward = Ward.create_ward("test", "https://discordapp.com/channels/661500094910038045/661500095400902687/677095212425805824", locinfo);
+            sample_memory.should.deepEqual(
+                {"wards":{
+                    "661500095400902687":{"351172817519116301": [ward] } }}
+            );
+        });
+
+        it("'!ward set test2', this is just for future testing", function () {
+            const message = create_fake_message(
+                "!ward set test2",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/678267684378509313"
+            );
+            Ward.handle_message_(message, get_memory, set_memory, reply);
+        });
+        
+        it("'!ward search asdf' should return no result", function () {
+            const message = create_fake_message(
+                "!ward search asdf",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/678261534144725034"
+            );
+            Ward.handle_message_(message, get_memory, set_memory, reply);
+            // How am I supposed to test this?
+            logs[logs.length - 1].should.equal("");
+        });
+
+        it("'!ward search asdf' shouldn't set query state", function () {
+            const message = create_fake_message(
+                "!ward search asdf",
+                "661500095400902687",
+                "351172817519116301",
+                "https://discordapp.com/channels/661500094910038045/661500095400902687/678261534144725034"
+            );
+            Ward.handle_message_(message, get_memory, set_memory, reply);
+            const query_state = R.view(
+                R.lensPath(["queries", "351172817519116301"]),
+                sample_memory
+            );
+            Should(query_state).not.deepEqual(
+                Ward.create_asking_query(1, [], "SHOW")
+            );
+        });
+
+        it("`!ward search te` should respond to query", function () {
+            // TODO
+        });
+
+        // 생각해 봐야 할 문제
+        // 쿼리 메세지는 쿼리 해결 후 삭제되어야 한다
+        // 이를 위해선 메시지의 id를 저장해 놓아야 한다.
+        // 그러나 메시지 id를 가져올 수 있는 건 사이드이펙트 함수 루틴에서
+        // 메시지를 실제로 보냈을 때 뿐이다.
+
+        it("Check the log for yourself", function () {
+            console.log(logs);
+        });
+    });
+});

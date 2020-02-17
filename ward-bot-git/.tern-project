@@ -1,0 +1,11 @@
+{
+  "libs": [
+    "browser",
+    "rxjs",
+    "discord.js"
+  ],
+  "loadEagerly": [
+  ],
+  "plugins": {
+  }
+}

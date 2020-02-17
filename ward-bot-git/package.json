@@ -1,0 +1,24 @@
+{
+  "name": "test-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "engines": {
+    "node": "13.x",
+    "npm": "*"
+  },
+  "scripts": {
+    "start": "node ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@now/node": "^1.4.1",
+    "discord.js": "^11.5.1",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "ramda": "^0.27.0",
+    "rxjs": "^6.5.4",
+    "should": "^13.2.3"
+  }
+}
