@@ -264,6 +264,8 @@ function transfer_memory(action, memory) {
                 return [ [true, new_query],
                         R.set(query_lens(query_user), new_query, memory)];
             }
+            else
+                throw `Impossible!!! (direction=${direction})`;
         }
         else
             return [ [false, ""], memory];
