@@ -1,0 +1,128 @@
+import core
+import discord
+import discord.utils
+import re
+
+import message_optin
+
+def mention_user(user_name, user_disc, channel, fallback):
+    if isinstance(channel, discord.DMChannel):
+        user = discord.utils.get([ channel.me, channel.recipient ], name = user_name, discriminator = user_disc)
+    else:
+        user = discord.utils.get(channel.guild.members, name = user_name, discriminator = user_disc)
+
+    if user:
+        return user.mention
+    else:
+        return fallback
+
+def to_mention_form(word, channel):
+    mention_parse_regex = r"@([^#]+)#(\d+)"
+    m = re.match(mention_parse_regex, word)
+    if m:
+        name, disc = m.groups()
+        return mention_user(name, disc, channel, word)
+    else:
+        return word
+
+def to_channel_mention_form(word, channel):
+    if isinstance(channel, discord.DMChannel):
+        return word
+
+    channel_name = word[1:]
+    mentioned_channel = discord.utils.get(channel.guild.channels, name = channel_name)
+
+    if mentioned_channel:
+        return mentioned_channel.mention
+    else:
+        return word
+
+def to_emote_form(word, client):
+    emote_name = word[1:-1]
+    emote = discord.utils.get(client.emojis, name = emote_name)
+    if emote:
+        return str(emote)
+    else:
+        return word
+
+def process_message(msg_to_send, target_channel, client):
+    import itertools 
+
+    mention_regex =r"(?<!\\)(@[^#]+#\d+)"
+    msg2 = re.split(mention_regex, msg_to_send)
+    msg2_substituted_list = [ to_mention_form(word, target_channel) for word in msg2 ]
+    msg2_substituted = " ".join(msg2_substituted_list)
+    
+    channel_regex = r"(?:(?<=\s)|(?<=^))(#[^\s]+)(?=\s|$)"
+    msg3 = re.split(channel_regex, msg2_substituted)
+    msg3_substituted_list = [ to_channel_mention_form(word, target_channel) for word in msg3 ]
+    msg3_substituted = " ".join(msg3_substituted_list)
+    
+    emote_regex = r"(:[^\s^:]+:)"
+    already_emote_regex = r"(<a?:[^\s^:]+:\d+>)"
+
+    msg4 = re.split(already_emote_regex, msg3_substituted)
+    msg4 = [ re.split(emote_regex, part) if not re.match(already_emote_regex, part) else [ part ] for part in msg4 ]
+    msg4_flattened = list(itertools.chain(*msg4))
+    msg4_substituted_list = [ to_emote_form(word, client) for word in msg4_flattened ]
+    msg4_substituted = "".join(msg4_substituted_list)
+
+    return msg4_substituted
+
+async def process(pid, client, message):
+    if not isinstance(message.channel, discord.DMChannel):
+        return
+
+    if message.content.startswith("bundes transfer opt-in"):
+        params = message.content.split(" ")[3:]
+        if len(params) < 1:
+            await message.channel.send("Please provide the channel ID.")
+            return
+
+        if not params[0].isdigit():
+            await message.channel.send("You made an oopsie! Invalid channel ID format.")
+            return
+        
+        channel_id = int(params[0])
+        target_channel = client.get_channel(channel_id)
+
+        if not target_channel:
+            await message.channel.send("Sorry, I can't find the channel \:(")
+            return
+
+        await core.start_process(message_optin.program, user = message.author, channel = target_channel)
+
+    elif not message.content.startswith("bundes transfer opt-out") and message.content.startswith("bundes transfer"):
+        params = message.content.split(" ")[2:]
+        if len(params) == 0:
+            await message.channel.send("Transfer what and to where?")
+            return 
+        
+        if not params[0].isdigit():
+            await message.channel.send("You made an oopsie! Invalid channel ID format.")
+            return
+        
+        channel_id = int(params[0])
+        target_channel = client.get_channel(channel_id)
+        
+        if not target_channel:
+            await message.channel.send("Sorry, I can't find the channel \:(")
+            return
+        
+        if len(params) < 2 and len(message.attachments) == 0:
+            await message.channel.send("Dude, I can't send an empty message!")
+            return
+        
+        msg_to_send = " ".join(params[1:])
+        msg_to_send = process_message(msg_to_send, target_channel, client)
+
+        if len(message.attachments) > 0:
+            msg_to_send = msg_to_send + "\n" + message.attachments[0].url
+        
+        await target_channel.send(msg_to_send)
+
+program = core.Program(
+    puid = "transfer",
+    on_message = process
+)
+

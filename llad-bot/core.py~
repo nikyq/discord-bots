@@ -1,0 +1,52 @@
+import discord
+import indian_poker
+
+processes = []
+memory = {}
+
+def start_process(proc, pid):
+    if pid in [ pid for pid, proc in processes ]: # We won't allow multiple instances of a same process
+        return
+
+    processes.append((pid, proc))
+    memory[pid] = {}
+
+def end_process(pid):
+    to_unload = [ (id, proc) for id, proc in processes if id == pid ]
+    for elem in to_unload:
+        processess.remove(elem)
+    del memory[pid]
+
+def is_process_running(pid):
+    return pid in [ pid for pid, proc in processes ] # We won't allow multiple instances of a same process
+
+def write_memory(pid, key, data):
+    proc_memory = memory[pid]
+    proc_memory[key] = data
+
+def read_memory(pid, key):
+    proc_memory = memory[pid]
+    if key in proc_memory:
+        return proc_memory[key]
+    else:
+        return None
+
+async def on_message(message, client):
+    for pid, proc in processes:
+        await proc(message, client)
+    
+# on_typing(channel, user, when)
+# on_message(message)
+# on_message_delete(message)
+# on_message_edit(before, after)
+# on_reaction_add(reaction, user)
+# on_reaction_remove(reaction, user)
+# on_reaction_clear(message, reactions)
+# on_reaction_clear_emoji(reaction)
+# on_member_join(member)
+# on_member_remove(member)
+# on_member_update(before, after)
+# on_user_update(before, after)
+# on_member_ban(guild, user)
+# on_member_unban(guild, user)
+# on_invite_create(invite)

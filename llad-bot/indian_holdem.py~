@@ -1,0 +1,8 @@
+import bundesimperium as prc
+
+PID = "ttt"
+
+# game_code
+
+def game(message, client):
+    pass

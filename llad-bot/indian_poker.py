@@ -1,0 +1,54 @@
+import core
+from dataclasses import dataclass, replace
+from typing import Any
+
+shapes = "♥♠◆♧"
+numbers = "A23456789JQK"
+
+@dataclass(frozen=True)
+class Game:
+    state: str # not started, waiting, started
+    players: list
+
+@dataclass(frozen=True)
+class Player:
+    user: Any
+    money: int
+
+DEFAULT_MONEY = 1000
+
+# bundes indian start
+# bundes indian join
+# bundes indian bet <money>
+# bundes indian die
+# bundes indian end
+
+def register_player(game, user):
+    player = Player(user = user, money = DEFAULT_MONEY)
+    return replace(game, players = [ player ])
+
+async def process(pid, message, client):
+    game = core.read_memory(pid, "game")
+    if not game:
+        game = Game("not started", [])
+        core.write_memory(pid, "game", game)
+
+    if message.content.startswith("bundes indian"):
+        params = message.content.split(" ")[2:]
+        if len(params) > 0 and params[0] == "start":
+            if game.state != "not started":
+                await message.channel.send("No, no, no. Only one game at a time. I'm sorry.")
+                await message.channel.send("There's already another game going on or waiting for players. Try again next time.")
+                return
+
+            g1 = replace(game, state = "waiting")
+            g2 = register_player(g1, message.author)
+            core.write_memory(PID, "game", g2)
+
+            await message.channel.send("Let's freaking go!")
+            await message.channel.send("Type `bundes indian join` to join the game!")
+            
+program = core.Program(
+    puid = "indian",
+    on_message = process
+)
